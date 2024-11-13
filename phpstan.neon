@@ -1,0 +1,45 @@
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - examples
+    tmpDir: 'var/phpstan/tmp'
+    inferPrivatePropertyTypeFromConstructor: true
+    excludePaths:
+        analyse: []
+    typeAliases:
+        ContextData: '''
+            array{
+                name: string,
+                production: bool,
+                foo?: string,
+            }
+        '''
+        ImportSource: '''
+            array{
+                url?: string,
+                type?: "git" | "svn",
+                reference?: string,
+            }
+        '''
+        SshOptions: '''
+            array{
+               'port'?: int,
+               'path_private_key'?: string,
+               'jump_host'?: string,
+               'multiplexing_control_path'?: string,
+               'multiplexing_control_persist'?: string,
+               'enable_strict_check'?: bool,
+               'password_authentication'?: bool,
+           }
+       '''
+    ignoreErrors:
+        -
+            message: "#^Function pyrech\\\\.* not found\\.$#"
+            count: 2
+            path: examples/
+        -
+            identifier: missingType.generics

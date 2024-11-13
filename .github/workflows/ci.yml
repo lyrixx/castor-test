@@ -1,0 +1,135 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  check-composer-validation:
+    name: Composer validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Composer Validate
+        uses: docker://composer:2.7.1
+        with:
+          args: validate
+
+  check-cs:
+    name: Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+        with:
+          php-version: "8.3"
+          need_phar: 'false'
+
+      - name: PHP CS Fixer
+        run: bin/castor cs
+
+  phpstan:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+        with:
+          php-version: "8.3"
+          need_phar: 'false'
+
+      - name: PHPStan
+        run: bin/castor phpstan
+
+  phpunit:
+    name: "PHPUnit on ${{ matrix.php }} / Castor from ${{ matrix.castor.method }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: "8.1"
+            castor:
+              bin: 'bin/castor'
+              method: 'bin/castor'
+          - php: "8.1"
+            castor:
+              bin: 'tools/phar/build/castor.linux-amd64.phar'
+              method: 'phar'
+          - php: "8.1"
+            castor:
+              bin: 'castor'
+              method: 'static'
+          - php: "8.2"
+            castor:
+              bin: 'bin/castor'
+              method: 'bin/castor'
+          - php: "8.3"
+            castor:
+              bin: 'bin/castor'
+              method: 'bin/castor'
+          - php: "8.4"
+            castor:
+              bin: 'bin/castor'
+              method: 'bin/castor'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+        with:
+          php-version: "${{ matrix.php }}"
+
+      - uses: ./.github/actions/cache
+
+      - name: Build Castor phar for Linux
+        run: bin/castor castor:phar:linux
+        if: matrix.castor.method == 'phar' || matrix.castor.method == 'static'
+
+      - name: Compile Custom Built PHP along Castor phar for Linux
+        run: |
+          set -e
+          bin/castor castor:static:linux
+          mv castor.linux-amd64 ${{ github.workspace }}/${{ matrix.castor.bin }}
+        if: matrix.castor.method == 'static'
+
+      # We use box in a test, so we need to make it available everywhere
+      - name: Link box
+        run: sudo ln -s $GITHUB_WORKSPACE/tools/phar/vendor/bin/box /usr/local/bin/box
+
+      - name: Install PHPUnit
+        run: vendor/bin/simple-phpunit install
+
+      - name: Run tests
+        run: vendor/bin/simple-phpunit
+        env:
+          CASTOR_BIN: ${{ github.workspace }}/${{ matrix.castor.bin }}
+
+  artifacts:
+    name: Ensure artifacts are OK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+        with:
+          composer-flags: "--no-dev"
+      - uses: ./.github/actions/cache
+      - uses: ./.github/actions/phar
+      - uses: ./.github/actions/static
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
