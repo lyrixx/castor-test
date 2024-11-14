@@ -1,0 +1,157 @@
+name: Artifacts
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  phars:
+    name: Create phars and upload
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+        with:
+          composer-flags: "--no-dev"
+
+      - uses: ./.github/actions/phar
+
+      - name: Upload the Linux amd64 phar
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.linux-amd64.phar'
+          path: tools/phar/build/castor.linux-amd64.phar
+          if-no-files-found: error
+
+      - name: Upload the Linux amr64 phar
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.linux-arm64.phar'
+          path: tools/phar/build/castor.linux-arm64.phar
+          if-no-files-found: error
+
+      - name: Upload the Darwin amd64 phar
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.darwin-amd64.phar'
+          path: tools/phar/build/castor.darwin-amd64.phar
+          if-no-files-found: error
+
+      - name: Upload the Darwin amr64 phar
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.darwin-arm64.phar'
+          path: tools/phar/build/castor.darwin-arm64.phar
+          if-no-files-found: error
+
+      - name: Upload the Windows phar
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor-windows-amd64.phar'
+          path: tools/phar/build/castor.windows-amd64.phar
+          if-no-files-found: error
+
+  static-linux-amd64:
+    needs: phars
+    name: Create Linux amd64 static binary and upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+
+      - uses: ./.github/actions/cache
+        with:
+          os: 'linux'
+
+      - name: retrieve phar artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: tools/phar/build
+          merge-multiple: true
+
+      - uses: ./.github/actions/static
+        with:
+          os: 'linux'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload the Linux amd64 static binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.linux-amd64'
+          path: ./castor.linux-amd64
+          if-no-files-found: error
+
+  static-darwin-amd64:
+    needs: phars
+    name: Create MacOs amd64 static binary and upload
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+
+      - uses: ./.github/actions/cache
+        with:
+          os: 'darwin'
+
+      - name: retrieve phar artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: tools/phar/build
+          merge-multiple: true
+
+      - uses: ./.github/actions/static
+        with:
+          os: 'darwin-amd64'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload the MacOs amd64 static binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'castor.darwin-amd64'
+          path: ./castor.darwin-amd64
+          if-no-files-found: error
+
+  static-darwin-arm64:
+    needs: phars
+    name: Create MacOs arm64 static binary and upload
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/install
+
+      - uses: ./.github/actions/cache
+        with:
+          os: "darwin"
+
+      - name: retrieve phar artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: tools/phar/build
+          merge-multiple: true
+
+      - uses: ./.github/actions/static
+        with:
+          os: "darwin-arm64"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload the MacOs arm64 static binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: "castor.darwin-arm64"
+          path: ./castor.darwin-arm64
+          if-no-files-found: error
